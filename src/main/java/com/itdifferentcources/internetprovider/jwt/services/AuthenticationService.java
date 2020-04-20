@@ -1,6 +1,6 @@
 package com.itdifferentcources.internetprovider.jwt.services;
 
-import com.itdifferentcources.internetprovider.jwt.services.jwt.JwtUtils;
+import com.itdifferentcources.internetprovider.jwt.services.util.JwtUtils;
 import com.itdifferentcources.internetprovider.jwt.persistence.entity.Role;
 import com.itdifferentcources.internetprovider.jwt.persistence.entity.Role.RoleType;
 import com.itdifferentcources.internetprovider.jwt.persistence.entity.User;

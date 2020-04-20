@@ -1,6 +1,6 @@
 package com.itdifferentcources.internetprovider.jwt.configuration.jwt;
 
-import com.itdifferentcources.internetprovider.jwt.services.jwt.JwtUtils;
+import com.itdifferentcources.internetprovider.jwt.services.util.JwtUtils;
 import java.io.IOException;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;

@@ -1,4 +1,4 @@
-package com.itdifferentcources.internetprovider.jwt.services.jwt;
+package com.itdifferentcources.internetprovider.jwt.services.util;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
