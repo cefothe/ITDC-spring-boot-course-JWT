@@ -438,11 +438,153 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 So now you will be able only to access swagger UI. For all others endpoint you need to receive 401.
 
 ### Insert roles
-Open your favorite database client and insert following sql:
+Open your favorite database client, connect to database with the same credentials that you use in
+application property file and insert following sql script:
 ```sql
 INSERT INTO roles(name) VALUES('ROLE_CUSTOMER');
 INSERT INTO roles(name) VALUES('ROLE_ADMIN');
 INSERT INTO roles(name) VALUES('ROLE_MODERATOR');
 ```
+Now you already have all roles that required for our application
 
-### Signin and signup 
+## Signin and signup 
+
+### DTOs for signin and sigup
+We need to create SignupRequestDTO class with following fields,
+username, password and email address.
+```java
+@RequiredArgsConstructor
+@Data
+public class SignupRequestDTO {
+
+    @Size(max = 20, min = 5)
+    @NotBlank
+    private String username;
+
+    @NotBlank
+    @Size(max = 50)
+    @Email
+    private String email;
+
+    @NotBlank
+    @Size(max = 20, min = 5)
+    private String password;
+}
+```
+Then create a LoginRequestDTO class with following fields,
+username and password.
+```java
+@RequiredArgsConstructor
+@Data
+public class LoginRequestDTO {
+    private String username;
+    private String password;
+}
+```
+And at the end JwtResponseDTO that will return the token.
+```java
+@AllArgsConstructor
+@Data
+public class JwtResponseDTO {
+    private String token;
+}
+```
+### AuthenticationService
+The service will provide functionality for signup and signin in our application.
+Please take to account that the first user will have ADMIN role, then every user will have CUSTOMER role
+```java
+@RequiredArgsConstructor
+@Service
+public class AuthenticationService {
+
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtils jwtUtils;
+
+
+    private static final Map<RoleType, Role>  roles = new HashMap<>();
+
+    @PostConstruct
+    protected void postConstruct(){
+        roleRepository.findAll().stream()
+            .forEach(role -> roles.put(role.getName(), role));
+    }
+
+    public void signup(SignupRequestDTO createUserDto) {
+        Role role = roles.get(RoleType.ROLE_CUSTOMER);
+        if(userRepository.count() == 0){
+            role = roles.get(RoleType.ROLE_ADMIN);
+        }
+        if(userRepository.findByUsername(createUserDto.getUsername()).isPresent()){
+         throw new RuntimeException(String.format("Username %s already exist", createUserDto.getUsername()));
+        }
+        User user = new User(createUserDto.getUsername(), passwordEncoder.encode(createUserDto.getPassword()), createUserDto.getEmail(),
+            Set.of(role));
+        userRepository.save(user);
+    }
+
+    public JwtResponseDTO signin(LoginRequestDTO loginRequestDTO) {
+        Authentication authentication = authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(loginRequestDTO.getUsername(), loginRequestDTO.getPassword()));
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        String jwt = jwtUtils.generateJwtToken(authentication);
+        return new JwtResponseDTO(jwt);
+    }
+}
+
+```
+
+### AuthenticationController
+Provide the API for signup and signin
+```java
+@RequiredArgsConstructor
+@RequestMapping("/api/v1/auth")
+@RestController
+public class AuthenticationController {
+
+    private final AuthenticationService authenticationService;
+
+    @PostMapping("/signup")
+    public ResponseEntity<Void> signup(@RequestBody @Validated SignupRequestDTO createUserDto){
+        authenticationService.signup(createUserDto);
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    @PostMapping("/signin")
+    public JwtResponseDTO signin(@RequestBody @Validated LoginRequestDTO loginRequestDTO){
+        return authenticationService.signin(loginRequestDTO);
+    }
+
+}
+
+```
+
+### Lets create a test controller.
+```java
+@RequestMapping("/api/v1/test")
+@RestController
+public class TestController {
+
+	@PreAuthorize("hasRole('CUSTOMER')")
+    @GetMapping("/customer")
+    public String testCustome(){
+        return "HELLO CUSTOMER";
+    }
+
+	@PreAuthorize("hasRole('ADMIN')")
+	@GetMapping("/admin")
+	public String testAdmin(){
+		return "HELLO ADMIN";
+	}
+}
+```
+
+## Let's try
+1. Create two users
+2. with the first user you will be able only to call `/api/v1/test/admin`.
+The first user will have Admin ROLE.
+3. with the second user you will be able only to call `/api/v1/test/customer`
+The second user will have Customer ROLE
